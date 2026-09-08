@@ -46,8 +46,11 @@
     .btn-pdf { background-color: #d83b01; }
 
     .history-filter { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-    .filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
-    .history-filter input { flex: 1 1 100%; min-width: 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.88rem; -webkit-appearance: none; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .date-range-row { display: flex; align-items: center; gap: 6px; width: 100%; }
+    .date-range-row input { flex: 1; min-width: 0; }
+    .date-range-row span { font-weight: bold; color: #666; }
+    .history-filter input { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.88rem; -webkit-appearance: none; }
     .history-filter button { width: 100%; background: #34c759; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95rem; }
     
     .history-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: #fff; font-size: 0.88rem; }
@@ -64,7 +67,8 @@
 
     @media (min-width: 480px) {
       .meta-section input { flex: 1; }
-      .filter-row input { flex: 1; }
+      .date-range-row { flex: 2; }
+      .filter-row input#filterInspector { flex: 1; }
     }
   </style>
 </head>
@@ -106,26 +110,41 @@
 
   <!-- TAB 2: 이력 조회 영역 -->
   <div id="historyTab" class="tab-content">
-    <h1>점검 이력 조회</h1>
-    <div class="history-filter">
-      <div class="filter-row">
-        <input type="date" id="filterDate">
-        <input type="text" id="filterInspector" placeholder="점검자 이름 입력 (선택)">
+    <div id="historyCaptureArea" style="background: white; padding: 4px; border-radius: 8px;">
+      <h1>점검 이력 조회</h1>
+      
+      <div class="history-filter" id="historyFilterBox">
+        <div class="filter-row">
+          <!-- 기간 설정 (시작일 ~ 종료일) -->
+          <div class="date-range-row">
+            <input type="date" id="startDate">
+            <span>~</span>
+            <input type="date" id="endDate">
+          </div>
+          <input type="text" id="filterInspector" placeholder="점검자 이름 입력 (선택)">
+        </div>
+        <button onclick="fetchHistory()">조회하기</button>
       </div>
-      <button onclick="fetchHistory()">조회하기</button>
+
+      <!-- 이력 조회 전용 이미지/PDF 저장 버튼 -->
+      <div class="btn-row" id="historyActionBtns" style="margin-bottom: 16px; display: none;">
+        <button class="btn btn-image" onclick="exportHistoryToImage()">이력 사진(이미지) 저장</button>
+        <button class="btn btn-pdf" onclick="exportHistoryToPDF()">이력 PDF 다운로드</button>
+      </div>
+
+      <div id="historyList">조회 버튼을 누르시면 이전 이력을 불러옵니다.</div>
     </div>
-    <div id="historyList">조회 버튼을 누르시면 이전 이력을 불러옵니다.</div>
   </div>
 </div>
 
 <!-- 📱 이미지 저장 전용 모달 팝업 -->
 <div id="imageModal" class="modal-overlay">
   <div class="modal-content">
-    <h3 style="font-size: 1.05rem; color: #1f497d;">점검표 이미지 생성 완료</h3>
+    <h3 style="font-size: 1.05rem; color: #1f497d;">이미지 생성 완료</h3>
     <p style="font-size: 0.85rem; color: #555; margin-top: 6px;">
       👇 아래 이미지를 <b>꾹 누르신 후</b><br><span style="color:#007aff; font-weight:bold;">[사진 앱에 추가]</span> 또는 <span style="color:#007aff; font-weight:bold;">[이미지 저장]</span>을 선택하세요.
     </p>
-    <img id="modalImage" src="" alt="체크리스트 이미지">
+    <img id="modalImage" src="" alt="캡처 이미지">
     <button class="modal-close-btn" onclick="closeModal()">닫기</button>
   </div>
 </div>
@@ -146,7 +165,7 @@
 
   let items = [...initialItems];
 
-  // 🇰🇷 한국 기준(Local Time) YYYY-MM-DD 변환 함수 (시차 오류 방지)
+  // 🇰🇷 한국 기준(Local Time) YYYY-MM-DD 변환 함수
   function getTodayKST() {
     const d = new Date();
     const year = d.getFullYear();
@@ -157,7 +176,8 @@
 
   const todayStr = getTodayKST();
   document.getElementById('checkDate').value = todayStr;
-  document.getElementById('filterDate').value = todayStr;
+  document.getElementById('startDate').value = todayStr;
+  document.getElementById('endDate').value = todayStr;
 
   function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -235,10 +255,13 @@
 
   function fetchHistory() {
     const historyList = document.getElementById('historyList');
-    const filterDate = document.getElementById('filterDate').value;
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
     const filterInspector = document.getElementById('filterInspector').value.trim().toLowerCase();
+    const historyBtns = document.getElementById('historyActionBtns');
     
     historyList.innerHTML = "데이터를 불러오는 중입니다...";
+    historyBtns.style.display = "none";
 
     fetch(GOOGLE_SCRIPT_URL, { redirect: "follow" })
       .then(res => res.json())
@@ -246,26 +269,30 @@
         if (res.result === "success" && res.data.length > 0) {
           let filteredData = res.data;
 
-          // 날짜 비교 로직 강화 (타임존 및 포맷 차이 완벽 정제)
-          if (filterDate) {
-            filteredData = filteredData.filter(row => {
-              if (!row.date) return false;
-              
-              // 날짜 문자열에서 YYYY-MM-DD 형태 정규식 추출
-              const d = new Date(row.date);
-              if (!isNaN(d.getTime())) {
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                const rowDateKST = `${year}-${month}-${day}`;
-                return rowDateKST === filterDate;
-              }
-              
-              // Date 객체 변환 실패 시 단순 문자열 앞 10자리 비교
-              return String(row.date).substring(0, 10) === filterDate;
-            });
-          }
+          // 기간(시작일 ~ 종료일) 범위 검색 로직
+          filteredData = filteredData.filter(row => {
+            if (!row.date) return false;
+            
+            let rowDateKST = "";
+            const d = new Date(row.date);
+            if (!isNaN(d.getTime())) {
+              const year = d.getFullYear();
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              rowDateKST = `${year}-${month}-${day}`;
+            } else {
+              rowDateKST = String(row.date).substring(0, 10);
+            }
 
+            // 시작일 체크
+            if (startDate && rowDateKST < startDate) return false;
+            // 종료일 체크
+            if (endDate && rowDateKST > endDate) return false;
+
+            return true;
+          });
+
+          // 점검자 이름 검색 로직
           if (filterInspector) {
             filteredData = filteredData.filter(row => {
               const inspectorStr = String(row.inspector || '').toLowerCase();
@@ -274,7 +301,7 @@
           }
 
           if (filteredData.length === 0) {
-            historyList.innerHTML = "조건에 해당하는 점검 이력이 없습니다.";
+            historyList.innerHTML = "선택하신 기간 조건에 해당하는 점검 이력이 없습니다.";
             return;
           }
 
@@ -282,7 +309,6 @@
           filteredData.reverse().forEach(row => {
             const tagClass = row.status === '점검완료' ? 'tag-완료' : (row.status === '점검중' ? 'tag-진행' : 'tag-전');
             
-            // 표출 시 날짜를 YYYY-MM-DD 형식으로 깔끔하게 정제
             let displayDate = row.date;
             const d = new Date(row.date);
             if (!isNaN(d.getTime())) {
@@ -305,6 +331,7 @@
             `;
           });
           historyList.innerHTML = listHtml;
+          historyBtns.style.display = "flex";
         } else {
           historyList.innerHTML = "저장된 이력이 없습니다.";
         }
@@ -314,9 +341,8 @@
       });
   }
 
-  // 📱 모바일 앱(PWA/독립 실행 모드) 완벽 대응 이미지 저장 함수
+  // 📝 [작성 탭] 이미지 저장
   function exportToImage() {
-    const payload = getChecklistPayload();
     const element = document.getElementById('captureArea');
     const actionBtns = document.querySelector('.action-buttons');
     const addSec = document.querySelector('.add-section');
@@ -326,21 +352,13 @@
     addSec.style.display = 'none';
     deleteBtns.forEach(btn => btn.style.display = 'none');
 
-    html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      logging: false
-    }).then(canvas => {
+    html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, logging: false }).then(canvas => {
       actionBtns.style.display = 'flex';
       addSec.style.display = 'flex';
       deleteBtns.forEach(btn => btn.style.display = 'inline-block');
 
-      const imgData = canvas.toDataURL('image/png');
-
-      document.getElementById('modalImage').src = imgData;
+      document.getElementById('modalImage').src = canvas.toDataURL('image/png');
       document.getElementById('imageModal').style.display = 'flex';
-
     }).catch(err => {
       actionBtns.style.display = 'flex';
       addSec.style.display = 'flex';
@@ -349,10 +367,7 @@
     });
   }
 
-  function closeModal() {
-    document.getElementById('imageModal').style.display = 'none';
-  }
-
+  // 📝 [작성 탭] PDF 저장
   function exportToPDF() {
     const payload = getChecklistPayload();
     const element = document.getElementById('captureArea');
@@ -374,6 +389,60 @@
       document.querySelector('.add-section').style.display = 'flex';
       alert("PDF 생성 중 오류가 발생했습니다: " + err);
     });
+  }
+
+  // 🔍 [이력 탭] 이미지 저장
+  function exportHistoryToImage() {
+    const element = document.getElementById('historyCaptureArea');
+    const filterBox = document.getElementById('historyFilterBox');
+    const actionBtns = document.getElementById('historyActionBtns');
+
+    filterBox.style.display = 'none';
+    actionBtns.style.display = 'none';
+
+    html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, logging: false }).then(canvas => {
+      filterBox.style.display = 'flex';
+      actionBtns.style.display = 'flex';
+
+      document.getElementById('modalImage').src = canvas.toDataURL('image/png');
+      document.getElementById('imageModal').style.display = 'flex';
+    }).catch(err => {
+      filterBox.style.display = 'flex';
+      actionBtns.style.display = 'flex';
+      alert("이력 이미지 생성 중 오류가 발생했습니다: " + err);
+    });
+  }
+
+  // 🔍 [이력 탭] PDF 저장
+  function exportHistoryToPDF() {
+    const startDate = document.getElementById('startDate').value || 'ALL';
+    const endDate = document.getElementById('endDate').value || 'ALL';
+    const element = document.getElementById('historyCaptureArea');
+    const filterBox = document.getElementById('historyFilterBox');
+    const actionBtns = document.getElementById('historyActionBtns');
+
+    const opt = { 
+      margin: 10, 
+      filename: `위생점검이력_${startDate}_~_${endDate}.pdf`, 
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    filterBox.style.display = 'none';
+    actionBtns.style.display = 'none';
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      filterBox.style.display = 'flex';
+      actionBtns.style.display = 'flex';
+    }).catch(err => {
+      filterBox.style.display = 'flex';
+      actionBtns.style.display = 'flex';
+      alert("이력 PDF 생성 중 오류가 발생했습니다: " + err);
+    });
+  }
+
+  function closeModal() {
+    document.getElementById('imageModal').style.display = 'none';
   }
 
   renderList();
