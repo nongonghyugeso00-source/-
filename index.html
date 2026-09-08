@@ -48,8 +48,24 @@
     .history-filter { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
     .filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
     .history-filter input { flex: 1 1 100%; min-width: 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.88rem; -webkit-appearance: none; }
-    .history-filter button { width: 100%; background: #34c759; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95rem; }
+    .history-filter button { width: 100%; background: #1f497d; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95rem; }
     
+    /* 🔍 초기 대기 상태 안내 박스 스타일 */
+    .history-placeholder {
+      text-align: center;
+      padding: 40px 16px;
+      background: #f9f9fb;
+      border: 1px dashed #cccccc;
+      border-radius: 8px;
+      color: #666;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .history-placeholder .icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
     .history-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: #fff; font-size: 0.88rem; }
     .history-tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-left: 6px; }
     .tag-완료 { background: #e6f4ea; color: #137333; }
@@ -114,7 +130,15 @@
       </div>
       <button onclick="fetchHistory()">조회하기</button>
     </div>
-    <div id="historyList">조회 버튼을 누르시면 이전 이력을 불러옵니다.</div>
+
+    <!-- 초기 상태: 대기 화면 표시 -->
+    <div id="historyList">
+      <div class="history-placeholder">
+        <div class="icon">🔍</div>
+        조회할 날짜나 점검자 이름을 입력하신 후<br>
+        <strong>[조회하기]</strong> 버튼을 누르면 이력이 표시됩니다.
+      </div>
+    </div>
   </div>
 </div>
 
@@ -157,7 +181,6 @@
 
   const todayStr = getTodayKST();
   document.getElementById('checkDate').value = todayStr;
-  document.getElementById('filterDate').value = todayStr;
 
   function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -169,7 +192,7 @@
     } else {
       document.querySelectorAll('.tab-btn')[1].classList.add('active');
       document.getElementById('historyTab').classList.add('active');
-      fetchHistory();
+      // 💡 [수정] 이력 조회 탭을 선택해도 자동 조회(fetchHistory)를 실행하지 않고 대기 화면 유지
     }
   }
 
@@ -238,7 +261,7 @@
     const filterDate = document.getElementById('filterDate').value;
     const filterInspector = document.getElementById('filterInspector').value.trim().toLowerCase();
     
-    historyList.innerHTML = "데이터를 불러오는 중입니다...";
+    historyList.innerHTML = "<div class='history-placeholder'>데이터를 불러오는 중입니다...</div>";
 
     fetch(GOOGLE_SCRIPT_URL, { redirect: "follow" })
       .then(res => res.json())
@@ -246,12 +269,11 @@
         if (res.result === "success" && res.data.length > 0) {
           let filteredData = res.data;
 
-          // 날짜 비교 로직 강화 (타임존 및 포맷 차이 완벽 정제)
+          // 날짜 비교 로직 (날짜 필터값이 있을 때만 적용)
           if (filterDate) {
             filteredData = filteredData.filter(row => {
               if (!row.date) return false;
               
-              // 날짜 문자열에서 YYYY-MM-DD 형태 정규식 추출
               const d = new Date(row.date);
               if (!isNaN(d.getTime())) {
                 const year = d.getFullYear();
@@ -260,12 +282,11 @@
                 const rowDateKST = `${year}-${month}-${day}`;
                 return rowDateKST === filterDate;
               }
-              
-              // Date 객체 변환 실패 시 단순 문자열 앞 10자리 비교
               return String(row.date).substring(0, 10) === filterDate;
             });
           }
 
+          // 작성자 비교 로직
           if (filterInspector) {
             filteredData = filteredData.filter(row => {
               const inspectorStr = String(row.inspector || '').toLowerCase();
@@ -274,7 +295,7 @@
           }
 
           if (filteredData.length === 0) {
-            historyList.innerHTML = "조건에 해당하는 점검 이력이 없습니다.";
+            historyList.innerHTML = "<div class='history-placeholder'>조건에 해당하는 점검 이력이 없습니다.</div>";
             return;
           }
 
@@ -282,7 +303,6 @@
           filteredData.reverse().forEach(row => {
             const tagClass = row.status === '점검완료' ? 'tag-완료' : (row.status === '점검중' ? 'tag-진행' : 'tag-전');
             
-            // 표출 시 날짜를 YYYY-MM-DD 형식으로 깔끔하게 정제
             let displayDate = row.date;
             const d = new Date(row.date);
             if (!isNaN(d.getTime())) {
@@ -306,11 +326,11 @@
           });
           historyList.innerHTML = listHtml;
         } else {
-          historyList.innerHTML = "저장된 이력이 없습니다.";
+          historyList.innerHTML = "<div class='history-placeholder'>저장된 이력이 없습니다.</div>";
         }
       })
       .catch(err => {
-        historyList.innerHTML = "이력을 불러오지 못했습니다. Apps Script의 [배포] -> [새 배포] 설정을 확인해 주세요.";
+        historyList.innerHTML = "<div class='history-placeholder' style='color:#ff3b30;'>이력을 불러오지 못했습니다.<br>Apps Script의 [배포] 설정 또는 네트워크 상태를 확인해 주세요.</div>";
       });
   }
 
