@@ -1,8 +1,8 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>위생 안전진단 일일 체크리스트</title>
   
   <!-- PDF 및 이미지 저장 전용 라이브러리 -->
@@ -11,50 +11,58 @@
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Apple SD Gothic Neo', sans-serif; }
-    body { background-color: #f5f5f7; padding: 16px; color: #333; }
-    .container { max-width: 650px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    body { background-color: #f5f5f7; padding: 12px; color: #333; }
+    .container { max-width: 650px; width: 100%; margin: 0 auto; background: white; padding: 16px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     
-    .tab-menu { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
-    .tab-btn { flex: 1; padding: 12px; text-align: center; font-weight: bold; cursor: pointer; background: none; border: none; font-size: 1rem; color: #666; }
+    .tab-menu { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 16px; }
+    .tab-btn { flex: 1; padding: 10px; text-align: center; font-weight: bold; cursor: pointer; background: none; border: none; font-size: 0.95rem; color: #666; }
     .tab-btn.active { color: #1f497d; border-bottom: 3px solid #1f497d; }
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    h1 { font-size: 1.2rem; text-align: center; margin-bottom: 16px; color: #1f497d; }
-    .meta-section { display: flex; gap: 10px; margin-bottom: 16px; }
-    .meta-section input { flex: 1; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+    h1 { font-size: 1.15rem; text-align: center; margin-bottom: 16px; color: #1f497d; word-break: keep-all; }
+    
+    /* 📱 모바일 대응 메타 입력 섹션 (자동 줄바꿈 및 너비 조절) */
+    .meta-section { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .meta-section input { flex: 1 1 100%; min-width: 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
     
     .add-section { display: flex; gap: 8px; margin-bottom: 16px; }
-    .add-section input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
-    .add-btn { background: #007aff; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .add-section input { flex: 1; min-width: 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+    .add-btn { background: #007aff; color: white; border: none; padding: 10px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; }
     
     .item-card { border: 1px solid #e5e5ea; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
-    .item-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 8px; }
-    .delete-btn { color: #ff3b30; border: none; background: none; font-size: 0.85rem; cursor: pointer; }
+    .item-header { display: flex; justify-content: space-between; align-items: flex-start; font-weight: bold; margin-bottom: 8px; font-size: 0.95rem; }
+    .delete-btn { color: #ff3b30; border: none; background: none; font-size: 0.85rem; cursor: pointer; margin-left: 8px; white-space: nowrap; }
     
     .status-group { display: flex; gap: 12px; margin-bottom: 8px; font-size: 0.85rem; }
     .status-group label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-    .note-input { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem; }
+    .note-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem; }
     
     .action-buttons { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
     .btn-row { display: flex; gap: 8px; }
-    .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer; text-align: center; color: white; }
+    .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: bold; cursor: pointer; text-align: center; color: white; }
     .btn-google { background-color: #4285f4; }
     .btn-image { background-color: #34c759; }
     .btn-pdf { background-color: #d83b01; }
 
-    /* 이력 조회 필터 영역 */
+    /* 📱 이력 조회 필터 영역 (모바일 화면 초과 방지) */
     .history-filter { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-    .filter-row { display: flex; gap: 8px; }
-    .history-filter input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.88rem; }
-    .history-filter button { background: #34c759; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .history-filter input { flex: 1 1 100%; min-width: 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.88rem; }
+    .history-filter button { width: 100%; background: #34c759; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95rem; }
     
     .history-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: #fff; font-size: 0.88rem; }
     .history-tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-left: 6px; }
     .tag-완료 { background: #e6f4ea; color: #137333; }
     .tag-진행 { background: #fef7e0; color: #b06000; }
     .tag-전 { background: #f1f3f4; color: #5f6368; }
+
+    /* 태블릿/PC 화면 대응 (화면 폭이 480px 이상일 때 가로 정렬) */
+    @media (min-width: 480px) {
+      .meta-section input { flex: 1; }
+      .filter-row input { flex: 1; }
+    }
   </style>
 </head>
 <body>
@@ -68,7 +76,7 @@
 
   <!-- TAB 1: 작성 영역 -->
   <div id="writeTab" class="tab-content active">
-    <div id="captureArea" style="background: white; padding: 10px; border-radius: 8px;">
+    <div id="captureArea" style="background: white; padding: 4px; border-radius: 8px;">
       <h1>위생 안전진단 대비 일일 체크리스트</h1>
       
       <div class="meta-section">
@@ -256,7 +264,6 @@
       });
   }
 
-  // 화면을 PNG 이미지 파일로 저장하는 함수
   function exportToImage() {
     const payload = getChecklistPayload();
     const element = document.getElementById('captureArea');
@@ -264,7 +271,6 @@
     const addSec = document.querySelector('.add-section');
     const deleteBtns = document.querySelectorAll('.delete-btn');
 
-    // 이미지로 저장 시 불필요한 버튼 잠시 숨기기
     actionBtns.style.display = 'none';
     addSec.style.display = 'none';
     deleteBtns.forEach(btn => btn.style.display = 'none');
@@ -275,7 +281,6 @@
       link.href = canvas.toDataURL('image/png');
       link.click();
 
-      // 저장 완료 후 버튼 원상복구
       actionBtns.style.display = 'flex';
       addSec.style.display = 'flex';
       deleteBtns.forEach(btn => btn.style.display = 'inline-block');
