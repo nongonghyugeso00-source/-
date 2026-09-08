@@ -1,0 +1,303 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>위생 안전진단 일일 체크리스트</title>
+  
+  <!-- PDF 및 이미지 저장 전용 라이브러리 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Apple SD Gothic Neo', sans-serif; }
+    body { background-color: #f5f5f7; padding: 16px; color: #333; }
+    .container { max-width: 650px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    
+    .tab-menu { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
+    .tab-btn { flex: 1; padding: 12px; text-align: center; font-weight: bold; cursor: pointer; background: none; border: none; font-size: 1rem; color: #666; }
+    .tab-btn.active { color: #1f497d; border-bottom: 3px solid #1f497d; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    h1 { font-size: 1.2rem; text-align: center; margin-bottom: 16px; color: #1f497d; }
+    .meta-section { display: flex; gap: 10px; margin-bottom: 16px; }
+    .meta-section input { flex: 1; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+    
+    .add-section { display: flex; gap: 8px; margin-bottom: 16px; }
+    .add-section input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+    .add-btn { background: #007aff; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    
+    .item-card { border: 1px solid #e5e5ea; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
+    .item-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 8px; }
+    .delete-btn { color: #ff3b30; border: none; background: none; font-size: 0.85rem; cursor: pointer; }
+    
+    .status-group { display: flex; gap: 12px; margin-bottom: 8px; font-size: 0.85rem; }
+    .status-group label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .note-input { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem; }
+    
+    .action-buttons { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+    .btn-row { display: flex; gap: 8px; }
+    .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer; text-align: center; color: white; }
+    .btn-google { background-color: #4285f4; }
+    .btn-image { background-color: #34c759; }
+    .btn-pdf { background-color: #d83b01; }
+
+    /* 이력 조회 필터 영역 */
+    .history-filter { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .filter-row { display: flex; gap: 8px; }
+    .history-filter input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.88rem; }
+    .history-filter button { background: #34c759; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    
+    .history-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: #fff; font-size: 0.88rem; }
+    .history-tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-left: 6px; }
+    .tag-완료 { background: #e6f4ea; color: #137333; }
+    .tag-진행 { background: #fef7e0; color: #b06000; }
+    .tag-전 { background: #f1f3f4; color: #5f6368; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 탭 메뉴 -->
+  <div class="tab-menu">
+    <button class="tab-btn active" onclick="switchTab('write')">일일 점검 작성</button>
+    <button class="tab-btn" onclick="switchTab('history')">이력 조회</button>
+  </div>
+
+  <!-- TAB 1: 작성 영역 -->
+  <div id="writeTab" class="tab-content active">
+    <div id="captureArea" style="background: white; padding: 10px; border-radius: 8px;">
+      <h1>위생 안전진단 대비 일일 체크리스트</h1>
+      
+      <div class="meta-section">
+        <input type="date" id="checkDate">
+        <input type="text" id="inspectorName" placeholder="점검자 이름 입력">
+      </div>
+
+      <div class="add-section">
+        <input type="text" id="newItemText" placeholder="새 점검 항목 추가">
+        <button class="add-btn" onclick="addItem()">추가</button>
+      </div>
+
+      <div id="checklist"></div>
+
+      <div class="action-buttons">
+        <button class="btn btn-google" onclick="submitToGoogle()">점검완료보고 (클라우드 저장)</button>
+        <div class="btn-row">
+          <button class="btn btn-image" onclick="exportToImage()">사진(이미지)으로 저장</button>
+          <button class="btn btn-pdf" onclick="exportToPDF()">PDF 다운로드</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: 이력 조회 영역 -->
+  <div id="historyTab" class="tab-content">
+    <h1>점검 이력 조회</h1>
+    <div class="history-filter">
+      <div class="filter-row">
+        <input type="date" id="filterDate">
+        <input type="text" id="filterInspector" placeholder="점검자 이름 입력 (선택)">
+      </div>
+      <button onclick="fetchHistory()">조회하기</button>
+    </div>
+    <div id="historyList">조회 버튼을 누르시면 이전 이력을 불러옵니다.</div>
+  </div>
+</div>
+
+<script>
+  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxfMXLYcbTv-_VlqUne5q70kn18rMMlIXp4Aj3z4L2LFt5eR3HXglAnYms5JvnEapTn/exec";
+
+  const initialItems = [
+    "냉장·냉동고 작동상태 및 온도 확인",
+    "식자재 라벨링 일자, 시간 확인",
+    "식자재 소비기한 확인",
+    "식자재, 소모품 보관기준에 따른 보관",
+    "매장 원산지 표시 및 원팩 보관",
+    "세제 등 소모품 소비기한 확인",
+    "정수기 점검 일자 확인",
+    "자외선 소독고 작동 상태 확인"
+  ];
+
+  let items = [...initialItems];
+  document.getElementById('checkDate').value = new Date().toISOString().substring(0, 10);
+
+  function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+    if (tabName === 'write') {
+      document.querySelectorAll('.tab-btn')[0].classList.add('active');
+      document.getElementById('writeTab').classList.add('active');
+    } else {
+      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      document.getElementById('historyTab').classList.add('active');
+      fetchHistory();
+    }
+  }
+
+  function renderList() {
+    const listEl = document.getElementById('checklist');
+    listEl.innerHTML = '';
+    items.forEach((item, index) => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+      card.innerHTML = `
+        <div class="item-header">
+          <span>${index + 1}. ${item}</span>
+          <button class="delete-btn" onclick="removeItem(${index})">삭제</button>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="status-${index}" value="점검완료"> 점검완료</label>
+          <label><input type="radio" name="status-${index}" value="점검중"> 점검중</label>
+          <label><input type="radio" name="status-${index}" value="점검전" checked> 점검전</label>
+        </div>
+        <input type="text" class="note-input" id="note-${index}" placeholder="비고 / 조치사항 입력">
+      `;
+      listEl.appendChild(card);
+    });
+  }
+
+  function addItem() {
+    const input = document.getElementById('newItemText');
+    const text = input.value.trim();
+    if (text) { items.push(text); input.value = ''; renderList(); }
+  }
+
+  function removeItem(index) { items.splice(index, 1); renderList(); }
+
+  function getChecklistPayload() {
+    const date = document.getElementById('checkDate').value;
+    const inspector = document.getElementById('inspectorName').value || '미기재';
+    const itemList = [];
+
+    items.forEach((item, index) => {
+      const statusEl = document.querySelector(`input[name="status-${index}"]:checked`);
+      itemList.push({
+        no: index + 1,
+        title: item,
+        status: statusEl ? statusEl.value : '점검전',
+        note: document.getElementById(`note-${index}`).value
+      });
+    });
+
+    return { date, inspector, items: itemList };
+  }
+
+  function submitToGoogle() {
+    const payload = getChecklistPayload();
+
+    fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    })
+    .then(() => alert("구글 스프레드시트에 정상 저장되었습니다!"))
+    .catch(err => alert("저장 실패: " + err));
+  }
+
+  function fetchHistory() {
+    const historyList = document.getElementById('historyList');
+    const filterDate = document.getElementById('filterDate').value;
+    const filterInspector = document.getElementById('filterInspector').value.trim().toLowerCase();
+    
+    historyList.innerHTML = "데이터를 불러오는 중입니다...";
+
+    fetch(GOOGLE_SCRIPT_URL, { redirect: "follow" })
+      .then(res => res.json())
+      .then(res => {
+        if (res.result === "success" && res.data.length > 0) {
+          let filteredData = res.data;
+
+          if (filterDate) {
+            filteredData = filteredData.filter(row => {
+              const rowDateStr = String(row.date).substring(0, 10);
+              return rowDateStr === filterDate;
+            });
+          }
+
+          if (filterInspector) {
+            filteredData = filteredData.filter(row => {
+              const inspectorStr = String(row.inspector).toLowerCase();
+              return inspectorStr.includes(filterInspector);
+            });
+          }
+
+          if (filteredData.length === 0) {
+            historyList.innerHTML = "조건에 해당하는 점검 이력이 없습니다.";
+            return;
+          }
+
+          let listHtml = "";
+          filteredData.reverse().forEach(row => {
+            const tagClass = row.status === '점검완료' ? 'tag-완료' : (row.status === '점검중' ? 'tag-진행' : 'tag-전');
+
+            listHtml += `
+              <div class="history-card">
+                <div style="font-weight:bold; margin-bottom:4px; color:#1f497d;">
+                  [${row.date}] ${row.title}
+                  <span class="history-tag ${tagClass}">${row.status}</span>
+                </div>
+                <div style="color:#666; font-size:0.8rem;">
+                  작성자: <strong>${row.inspector}</strong> | 비고: ${row.note || '없음'}
+                </div>
+              </div>
+            `;
+          });
+          historyList.innerHTML = listHtml;
+        } else {
+          historyList.innerHTML = "저장된 이력이 없습니다.";
+        }
+      })
+      .catch(err => {
+        historyList.innerHTML = "이력을 불러오지 못했습니다. Apps Script의 [배포] -> [새 배포] 설정을 확인해 주세요.";
+      });
+  }
+
+  // 화면을 PNG 이미지 파일로 저장하는 함수
+  function exportToImage() {
+    const payload = getChecklistPayload();
+    const element = document.getElementById('captureArea');
+    const actionBtns = document.querySelector('.action-buttons');
+    const addSec = document.querySelector('.add-section');
+    const deleteBtns = document.querySelectorAll('.delete-btn');
+
+    // 이미지로 저장 시 불필요한 버튼 잠시 숨기기
+    actionBtns.style.display = 'none';
+    addSec.style.display = 'none';
+    deleteBtns.forEach(btn => btn.style.display = 'none');
+
+    html2canvas(element, { scale: 2 }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = `위생안전점검표_${payload.date}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+
+      // 저장 완료 후 버튼 원상복구
+      actionBtns.style.display = 'flex';
+      addSec.style.display = 'flex';
+      deleteBtns.forEach(btn => btn.style.display = 'inline-block');
+    });
+  }
+
+  function exportToPDF() {
+    const payload = getChecklistPayload();
+    const element = document.getElementById('captureArea');
+    const opt = { margin: 10, filename: `위생안전점검표_${payload.date}.pdf`, html2canvas: { scale: 2 } };
+    
+    document.querySelector('.action-buttons').style.display = 'none';
+    document.querySelector('.add-section').style.display = 'none';
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      document.querySelector('.action-buttons').style.display = 'flex';
+      document.querySelector('.add-section').style.display = 'flex';
+    });
+  }
+
+  renderList();
+</script>
+
+</body>
+</html>
