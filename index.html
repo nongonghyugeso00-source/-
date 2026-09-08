@@ -95,7 +95,7 @@
       <div id="checklist"></div>
 
       <div class="action-buttons">
-        <button class="btn btn-google" onclick="submitToGoogle()">저장및제출 (클라우드 저장)</button>
+        <button class="btn btn-google" onclick="submitToGoogle()">저장 및 제출 (클라우드 저장)</button>
         <div class="btn-row">
           <button class="btn btn-image" onclick="exportToImage()">사진(이미지)으로 저장</button>
           <button class="btn btn-pdf" onclick="exportToPDF()">PDF 다운로드</button>
@@ -145,12 +145,18 @@
   ];
 
   let items = [...initialItems];
-  const todayStr = new Date().toISOString().substring(0, 10);
-  
-  // 일일 점검 작성 탭 날짜 설정
-  document.getElementById('checkDate').value = todayStr;
 
-  // 이력 조회 탭 날짜 기본값 설정 (오늘 날짜로 자동 표출)
+  // 🇰🇷 한국 기준(Local Time) YYYY-MM-DD 변환 함수 (시차 오류 방지)
+  function getTodayKST() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  const todayStr = getTodayKST();
+  document.getElementById('checkDate').value = todayStr;
   document.getElementById('filterDate').value = todayStr;
 
   function switchTab(tabName) {
@@ -240,16 +246,29 @@
         if (res.result === "success" && res.data.length > 0) {
           let filteredData = res.data;
 
+          // 날짜 비교 로직 강화 (타임존 및 포맷 차이 완벽 정제)
           if (filterDate) {
             filteredData = filteredData.filter(row => {
-              const rowDateStr = String(row.date).substring(0, 10);
-              return rowDateStr === filterDate;
+              if (!row.date) return false;
+              
+              // 날짜 문자열에서 YYYY-MM-DD 형태 정규식 추출
+              const d = new Date(row.date);
+              if (!isNaN(d.getTime())) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const rowDateKST = `${year}-${month}-${day}`;
+                return rowDateKST === filterDate;
+              }
+              
+              // Date 객체 변환 실패 시 단순 문자열 앞 10자리 비교
+              return String(row.date).substring(0, 10) === filterDate;
             });
           }
 
           if (filterInspector) {
             filteredData = filteredData.filter(row => {
-              const inspectorStr = String(row.inspector).toLowerCase();
+              const inspectorStr = String(row.inspector || '').toLowerCase();
               return inspectorStr.includes(filterInspector);
             });
           }
@@ -262,15 +281,25 @@
           let listHtml = "";
           filteredData.reverse().forEach(row => {
             const tagClass = row.status === '점검완료' ? 'tag-완료' : (row.status === '점검중' ? 'tag-진행' : 'tag-전');
+            
+            // 표출 시 날짜를 YYYY-MM-DD 형식으로 깔끔하게 정제
+            let displayDate = row.date;
+            const d = new Date(row.date);
+            if (!isNaN(d.getTime())) {
+              const year = d.getFullYear();
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              displayDate = `${year}-${month}-${day}`;
+            }
 
             listHtml += `
               <div class="history-card">
                 <div style="font-weight:bold; margin-bottom:4px; color:#1f497d;">
-                  [${row.date}] ${row.title}
+                  [${displayDate}] ${row.title}
                   <span class="history-tag ${tagClass}">${row.status}</span>
                 </div>
                 <div style="color:#666; font-size:0.8rem;">
-                  작성자: <strong>${row.inspector}</strong> | 비고: ${row.note || '없음'}
+                  작성자: <strong>${row.inspector || '미기재'}</strong> | 비고: ${row.note || '없음'}
                 </div>
               </div>
             `;
@@ -309,7 +338,6 @@
 
       const imgData = canvas.toDataURL('image/png');
 
-      // 앱 내 팝업 모달에 이미지 설정 후 띄우기 (다운로드 차단 완벽 회피)
       document.getElementById('modalImage').src = imgData;
       document.getElementById('imageModal').style.display = 'flex';
 
