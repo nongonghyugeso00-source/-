@@ -145,7 +145,13 @@
   ];
 
   let items = [...initialItems];
-  document.getElementById('checkDate').value = new Date().toISOString().substring(0, 10);
+  const todayStr = new Date().toISOString().substring(0, 10);
+  
+  // 일일 점검 작성 탭 날짜 설정
+  document.getElementById('checkDate').value = todayStr;
+
+  // 이력 조회 탭 날짜 기본값 설정 (오늘 날짜로 자동 표출)
+  document.getElementById('filterDate').value = todayStr;
 
   function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
