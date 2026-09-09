@@ -225,7 +225,7 @@
 
   function getChecklistPayload() {
     const date = document.getElementById('checkDate').value;
-    const inspector = document.getElementById('inspectorName').value || '미기재';
+    const inspector = document.getElementById('inspectorName').value.trim();
     const itemList = [];
 
     items.forEach((item, index) => {
@@ -241,15 +241,39 @@
     return { date, inspector, items: itemList };
   }
 
+  // 🚨 유효성 검증 함수
+  function validateChecklist(payload) {
+    // 1. 점검자 입력 여부 확인
+    if (!payload.inspector) {
+      alert("점검자 이름을 입력해주세요.");
+      document.getElementById('inspectorName').focus();
+      return false;
+    }
+
+    // 2. '점검전' 상태 항목 존재 여부 확인
+    const hasUncheckedItems = payload.items.some(item => item.status === '점검전');
+    if (hasUncheckedItems) {
+      alert("점검전 상태인 항목이 있습니다. 모든 항목의 점검 상태를 확인해주세요.");
+      return false;
+    }
+
+    return true;
+  }
+
   function submitToGoogle() {
     const payload = getChecklistPayload();
+
+    // 입력 유효성 검사 실행
+    if (!validateChecklist(payload)) {
+      return; // 검증 실패 시 제출 중단
+    }
 
     fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
     })
-    .then(() => alert("스프레드시트 DB에 정상 저장되었습니다!"))
+    .then(() => alert("스프레드시트DB에 정상 저장되었습니다!"))
     .catch(err => alert("저장 실패: " + err));
   }
 
