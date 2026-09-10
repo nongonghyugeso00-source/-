@@ -252,6 +252,15 @@
 
   function removeItem(index) { items.splice(index, 1); renderList(); }
 
+  // 🔄 폼 상태를 초기 화면으로 리셋하는 함수
+  function resetForm() {
+    document.getElementById('inspectorName').value = '';
+    document.getElementById('checkDate').value = getTodayKST();
+    document.getElementById('newItemText').value = '';
+    items = [...initialItems];
+    renderList();
+  }
+
   function getChecklistPayload() {
     const date = document.getElementById('checkDate').value;
     const inspector = document.getElementById('inspectorName').value.trim();
@@ -292,7 +301,7 @@
 
     // 입력 유효성 검사 실행
     if (!validateChecklist(payload)) {
-      return;// 검증 실패 시 제출 중단
+      return; // 검증 실패 시 제출 중단
     }
 
     fetch(GOOGLE_SCRIPT_URL, {
@@ -300,7 +309,10 @@
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
     })
-    .then(() => alert("스프레드시트DB에 정상 저장되었습니다!"))
+    .then(() => {
+      alert("스프레드시트DB에 정상 저장되었습니다!");
+      resetForm(); // ✅ 저장 성공 후 폼 초기화 실행
+    })
     .catch(err => alert("저장 실패: " + err));
   }
 
